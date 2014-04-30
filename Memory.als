@@ -10,7 +10,7 @@ sig Primitive extends Object{}
 
 sig Memory {
 	//one so that every object will have an address
-	data: Addr one-> lone Object
+	data: Addr one -> lone Object
 }
 // every Object is in Memory
 {all o: Object| o in Addr.data}
