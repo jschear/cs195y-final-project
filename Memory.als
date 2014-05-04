@@ -12,8 +12,9 @@ sig Memory {
 	//one so that every object will have an address
 	data: Addr one -> lone Object
 }
-// every Object is in Memory
-{all o: Object| o in Addr.data}
+fact noDanglingObjects{
+	all o: Object| one a: Addr| a->o in Memory.data
+}
 
 fact Canonicalize {
 	no disj m, m': Memory | m.data = m'.data
@@ -28,6 +29,10 @@ fun addrToObject[m: Memory, a: Addr]: set Object {
 fun objectToAddr[m: Memory, o: Object]: set Addr {
 	m.data.o
 }
+
+check {
+	no o: Object| o not in Memory.data[Addr]
+} for 10
 
 run {
 // test if we can have some Addr mapping to nothing
