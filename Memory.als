@@ -5,20 +5,23 @@ sig Object {
 	pointers: set Object
 }
 
-sig Primitive extends Object{}
-{no pointers}
+sig Primitive extends Object { } {
+	no pointers
+}
 
 sig Memory {
-	//one so that every object will have an address
-	data: Addr one -> lone Object
+	data: Addr one -> lone Object // one so that every object will have an address
 }
-fact noDanglingObjects{
-	all o: Object| one a: Addr| a->o in Memory.data
+
+// Facts
+fact NoDanglingObjects {
+	Object = Memory.data[Addr]
 }
 
 fact Canonicalize {
 	no disj m, m': Memory | m.data = m'.data
 }
+
 
 // Helper functions
 fun addrToObject[m: Memory, a: Addr]: set Object {
@@ -31,7 +34,7 @@ fun objectToAddr[m: Memory, o: Object]: set Addr {
 }
 
 check {
-	no o: Object| o not in Memory.data[Addr]
+	Object in Memory.data[Addr]
 } for 10
 
 run {
