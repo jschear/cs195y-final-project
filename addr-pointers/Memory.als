@@ -12,6 +12,7 @@ sig Primitive extends Object {} {
 sig Memory {
 	pointers: Object -> Addr,
 	data: Addr -> lone Object
+	pointers: Object->Addr
 }
 
 fact Canonicalize {
