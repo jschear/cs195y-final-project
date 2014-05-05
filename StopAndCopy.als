@@ -35,7 +35,7 @@ abstract sig Event {
 sig CopyEvent extends Event {} {
 	let liveObjs = SC.mem.pre.data[InactiveHeap] |
 		let newObjs = liveObjs.pointers - liveObjs {
-			some newObjs // something is being copies
+			some newObjs // something is being copied
 			all o: newObjs | one i: InactiveHeap | i -> o in SC.mem.post.data // all objects to copy are now mapped in the inactive side
 			no o: Object | (InactiveHeap -> o) in (SC.mem.post.data - SC.mem.pre.data) and (o not in newObjs) // no extraneous new mappings in the inactive side
 		}
@@ -79,14 +79,17 @@ check AllLiveObjectsInNewHeap for 7 but 20 Addr, 10 Object
 check AllLiveObjectsInNewHeap for 5 but 14 Addr, 7 Object
 
 // check that all objects are now in the inactive side
-check {
-	let memEnd = SC.mem.last.data | RootSet.^pointers = memEnd[InactiveHeap]
-} for 6
+assert SoundAndComplete {
+	let memEnd = SC.mem.last.data | RootSet.*pointers = memEnd[InactiveHeap]
+	// equal sign here makes sure that we're not collecting more nor less
+} 
+check SoundAndComplete for 6 but 10 Addr, 5 Object
 
 // check that all object's addresses have changed
 assert AllLiveObjectsHaveNewAddresses {
-
+	all o: RootSet.*pointers | one i: InactiveHeap | i->o in SC.mem.last.data
 }
+check AllLiveObjectsHaveNewAddresses for 5 but 14 Addr, 7 Object
 
 // check that the set of inactive addrs is less than or equal to the set of active addrs
 assert UsingLEQAddrs {

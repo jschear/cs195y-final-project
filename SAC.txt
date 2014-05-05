@@ -1,0 +1,37 @@
+1. About this model
+
+For this model, we divide the address space into 2 spaces- ActiveHeap and InactiveHeap. We start out with all objects in the active side, a root set which comprises of several objects.
+
+For a CopyEvent, we are copying all objects that can be reachable by the live objects into the inactive side. Since all objects that are reachable by the live objects are themselves also live objects, we have an inductive property here: the objects in the inactive side of the heap are to be the live objects for the next CopyEvent. But to make this induction work, we need to define a base case, that is, at the start, all objects in root set also each has exactly one address mapped to it in inactive heap. And these objects(same as root set) are the live objects to start from.
+
+Because we are only copying things over, we don't invalidate the mappings in the active heap, and this gives us a nice property- during the progress of the algorithm, we are only adding mappings.
+
+Finally to mark the termination of the algorithm, we added a FinishedEvent where there's no new objects reachable from current live objects.
+
+2. An unexpected flaw
+
+In our model, the 'pointers' field in Object is a relation of Object->Object instead of Object->Addr. This makes no difference for Mark and Sweep algorithm because for every object, there's at most one address mapped to it. But this assumption no longer holds for Stop and Copy- for every Object, there can be at most 2 addresses mapped to it. And by using the relation of Object->Object, we omitted a good portion of implementation detail in this model.
+
+3. Difficulties
+
+For a CopyEvent to just add the right mappings, using 'in' is not enough, we also need to make sure we don't add unreasonable mappings to the memory.
+
+Figuring out a way to keep track of live objects is tricky, this state is changing over time as we added new objects in. Using something similar to marked field in Mark and Sweep model is one option, but then we realized that the live objects are just the same as all objects in the inactive heap. And it simplified things a lot.
+
+We also dodged a lot of difficulty because of the way we define our Memory model. By defining pointers to be pointing to objects, we avoid the process of finding corresponding addresses of certain objects and updating the mapping.
+
+4. Properties
+
+- Soundness and Completeness
+
+It would give us a lot of confidence if we are sure that we copy all live objects to the inactive heap, and we don't copy any non-live object to the inactive heap.
+
+- Using less than or equal to addresses
+
+It will be a huge surprise if we found out that after copying, we needed more addresses than we did before. Thus this property.
+
+This property naturally follows in our model because during the process of this algorithm, we are not introducing any new objects, and we have a fact (AtMostOneMapping) saying that for every object, there's at most 1 address in inactive heap can be mapped to it. So in fact we can choose to not verify it.
+
+- All live objects have new addresses
+
+By definition, all live objects should each have a mapping in inactive heap. This follows because of the SoundAndComplete property and the assumption that all live objects are in inactive heap.
