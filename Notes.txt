@@ -1,0 +1,6 @@
+- did you make any unexpected design choices?
+- what was difficult to model in Alloy?
+- what properties did you focus on verifying? why are they important? what properties could you *not* verify?
+- ...etc.
+
+It is not a report, or an essay, or anything like that. Think of it as writing extended comments so that I don't have to wade into your Alloy model blindly.
