@@ -13,6 +13,7 @@ sig Memory {
 	data: Addr -> lone Object
 }
 
+// No two Memory atoms have the same data mappings
 fact Canonicalize {
 	no disj m, m': Memory | m.data = m'.data
 }
