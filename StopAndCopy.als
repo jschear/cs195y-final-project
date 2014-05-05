@@ -80,6 +80,7 @@ check SoundAndComplete for 4 but 10 Addr, 5 Object
 check SoundAndComplete for 6 but 20 Addr, 10 Object
 
 // check that no live objects were removed
+// it's basically the same thing as AllLiveObjectsHaveNewAddresses
 assert AllLiveObjectsInNewHeap {
 	let memEnd = SC.mem.last.data | // memory at the end
 		let liveObjs = RootSet.^pointers | // all live objects using TC
@@ -93,7 +94,7 @@ check AllLiveObjectsInNewHeap for 6 but 14 Addr, 7 Object
 assert AllLiveObjectsHaveNewAddresses {
 	all o: RootSet.*pointers | one i: InactiveHeap | i->o in SC.mem.last.data
 }
-check AllLiveObjectsHaveNewAddresses for 5 but 14 Addr, 7 Object
+check AllLiveObjectsHaveNewAddresses for 7 but 14 Addr, 7 Object
 
 // check that the set of inactive addrs is less than or equal to the set of active addrs
 assert UsingLEQAddrs {

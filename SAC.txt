@@ -26,12 +26,16 @@ We also dodged a lot of difficulty because of the way we define our Memory model
 
 It would give us a lot of confidence if we are sure that we copy all live objects to the inactive heap, and we don't copy any non-live object to the inactive heap.
 
+- All live objects in new heap
+
+It's actually just a different form of the next property.
+
+- All live objects have new addresses
+
+By definition, all live objects should each have a mapping in inactive heap. This follows because of the SoundAndComplete property and the assumption that all live objects are in inactive heap.
+
 - Using less than or equal to addresses
 
 It will be a huge surprise if we found out that after copying, we needed more addresses than we did before. Thus this property.
 
 This property naturally follows in our model because during the process of this algorithm, we are not introducing any new objects, and we have a fact (AtMostOneMapping) saying that for every object, there's at most 1 address in inactive heap can be mapped to it. So in fact we can choose to not verify it.
-
-- All live objects have new addresses
-
-By definition, all live objects should each have a mapping in inactive heap. This follows because of the SoundAndComplete property and the assumption that all live objects are in inactive heap.
