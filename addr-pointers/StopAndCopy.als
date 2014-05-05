@@ -93,7 +93,7 @@ pred init[t: Time] {
 				(SC.mem.t.data.o -> i) in SC.forward.t
 			}
 		} else {
-			no i : InactiveHeap {
+			no i: InactiveHeap {
 				i->o in SC.mem.t.data
 				(SC.mem.t.data.o -> i) in SC.forward.t
 			}
