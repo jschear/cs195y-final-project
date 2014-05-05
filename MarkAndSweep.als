@@ -1,78 +1,113 @@
-module Final/MarkAndSweep
+module final/MarkAndSweep
 
-open Final/Memory
-open util/ordering[Time] //ordering on Time
+open final/Memory
+open util/ordering[Time]
 
 sig Time {}
-one sig MemoryState {
-	mem: one Memory,
-	//mem: Memory one ->one Time,
-	marked: Addr -> Time, // set of marked addresses
-	rootSet: set Addr // root set of live objects
+one sig RootSet in Addr {}
+one sig MS {
+	marked: Addr -> Time,
+	mem: Memory one -> Time
+} {
+	mem.Time = Memory // No extraneous memories
 }
 
-//1. getting the event idiom working
-//2. if there's a better way than MemoryState
-
-
-fact {
-	one Memory
+/** Facts **/
+// Every object is mapped to by some address in some memory
+fact NoDanglingObjects {
+	Object = Memory.data[Addr]
 }
 
+// All objects are mapped to by at most one address
+fact InjectiveAddrs {
+	all o: Object | lone Memory.data.o
+}
 
-// Events
+/** Events **/
 abstract sig Event {
 	pre, post: Time
 }
 
-sig MarkEvent extends Event {
-	toMark: one Addr
-} {
-	// one address in the marked set
-  /* one addr: MemoryState.marked.pre {
-		let obj = addrToObject[MemoryState.mem.pre, addr] { // current object
-			// there must be some progress
-			some a: objectToAddr[MemoryState.mem.pre, obj.pointers] | a not in MemoryState.marked.pre
-			// add object's pointers to marked set
-			MemoryState.marked.post = MemoryState.marked.pre + objectToAddr[MemoryState.mem.pre, obj.pointers]
+sig MarkEvent extends Event {} {
+	let objs = MS.mem.pre.data[MS.marked.pre] | // set of marked objects
+		let addrs = MS.mem.pre.data.(objs.pointers) { // the addresses of the objects they point to
+			some (addrs - MS.marked.pre) // some new addresses were reached
+			MS.marked.post = MS.marked.pre + addrs 
 		}
-	}
-	MemoryState.mem.post = MemoryState.mem.pre // memory doesn't change*/
-
-	toMark in MemoryState.marked.pre
-	let obj = addrToObject[MemoryState.mem, toMark] { // current object
-		// there must be some progress
-		some a: objectToAddr[MemoryState.mem, obj.pointers] | a not in MemoryState.marked.pre
-		// add object's pointers to marked set
-		MemoryState.marked.post = MemoryState.marked.pre + objectToAddr[MemoryState.mem, obj.pointers]
-	}
+	MS.mem.pre = MS.mem.post // frame condition: memory mappings don't change
 }
 
 sig SweepEvent extends Event {} {
-	//MemoryState.mem.post = MemoryState.mem.pre // memory doesn't change
+	// We are finished marking
+	// one more step along object pointers reaches no objects that aren't in the marked set
+	let markedObjs = MS.mem.pre.data[MS.marked.pre] | 
+		let nextAddrs = MS.mem.pre.data.(markedObjs.pointers) |
+			nextAddrs in MS.marked.pre
+
+	some (Addr - MS.marked.pre) // something is being sweeped
+	MS.mem.post.data != MS.mem.pre.data
+	MS.mem.post.data = MS.marked.pre <: MS.mem.pre.data
+	MS.marked.post = MS.marked.pre
 }
 
-// Traces
+/** Traces **/
 fact Traces {
 	init[first]
-	all t: Time - last |
-		let t' = t.next |
-			//one e: MarkEvent | e.pre = t and e.post = t'
-			one e: Event {
-				e.pre = t and e.post = t'
-				MemoryState.marked.t != MemoryState.marked.t' => e in MarkEvent
-			}
+	all e: Event | e.post = e.pre.next // no skipping times
+	all t: Time - last | let t' = t.next {
+		one e: Event {
+			e.pre = t and e.post = t'
+			MS.marked.t = MS.marked.t' or e in MarkEvent
+			MS.mem.t = MS.mem.t' or e in SweepEvent
+		}
+	}
+	some MarkEvent
+	one SweepEvent and post.last in SweepEvent // one SweepEvent (the last event)
 }
 
 pred init[t: Time] {
-	some rootSet // some live objects
-	marked.t = rootSet // marked set is initially the same as the root set
-	//all addr: MemoryState.rootSet | some addrToObject[MemoryState.mem.t, addr].pointers
-	all addr: MemoryState.rootSet | some addrToObject[MemoryState.mem, addr].pointers
+	some RootSet
+	MS.marked.t = RootSet // initialize marked set to root set
 }
 
-run {} for 3 but 3 Object, 3 Addr
+run {} for 6 but exactly 2 Memory
+/* For best visualizations:
+1. Magic Layout
+2. Project over MS, Memory and Time
+Now, cycle through times. You can tell what events you are between by the 'pre' and 'post' labels on events.
+*/
 
-// check that all objects stayed in the same place
 
-// eventually use this for checking mark and sweep
+/** Properties **/
+// Check that the mark search is the transitive closure of the root set
+assert MarkTraversalTransitiveClosure {
+	let memStart = MS.mem.first.data | MS.marked.last = memStart.(RootSet.(memStart.^pointers))
+}
+check MarkTraversalTransitiveClosure for 12
+
+// Check that no live objects were removed
+assert NoLiveObjectsCollected {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data |
+			let liveObjs = RootSet.(memStart.^pointers) |
+				all o: liveObjs | o in memEnd[Addr]
+}
+check NoLiveObjectsCollected for 9 // Exactly 9 Time, so 8 Event (worst case: Objects are a linked list)
+check NoLiveObjectsCollected for 5 but 10 Object, 10 Addr // More reasonable case, it takes fewer marks to cover everything
+
+// Check that all objects stayed in the same place
+assert NoMovingObjects {
+	let memStart = MS.mem.first.data |
+		let memEnd = MS.mem.last.data |
+			all o: memStart[Addr] | o in memEnd[Addr] => memEnd.o = memStart.o
+}
+check NoMovingObjects for 10
+
+// Between any two times, the address of an object doesn't change (if it is still mapped)
+assert NoMovingObjectsEver {
+	all disj t1, t2: Time {
+		let mem1 = MS.mem.t1.data | let mem2 = MS.mem.t2.data |
+			all o: mem1[Addr] | o in mem2[Addr] => mem1.o = mem2.o
+	}
+}
+check NoMovingObjectsEver for 10

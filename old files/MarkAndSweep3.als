@@ -18,7 +18,6 @@ abstract sig Event {
 
 fact Traces {
 	init[first]
-	all e: Event | e.post = e.pre.next // no skipping times
 	all t: Time - last | let t' = t.next {
 		one e: Event {
 			e.pre = t and e.post = t'
@@ -26,7 +25,7 @@ fact Traces {
 			MS.mem.t = MS.mem.t' or e in SweepEvent
 		}
 	}
-	some MarkEvent // must mark
+	all e: Event | e.post = e.pre.next
 	one SweepEvent and post.last in SweepEvent // one SeepEvent (the last event)
 }
 
@@ -51,35 +50,14 @@ sig SweepEvent extends Event {} {
 	MS.marked.post = MS.marked.pre
 }
 
-run {} for 6 but exactly 2 Memory
-/* For best visualizations:
-1. Magic Layout
-2. Project over MS, Memory and Time
-Now, cycle through times. You can tell what events you are between by the 'pre' and 'post' labels on events.
-*/
+run {} for 4 but 2 Memory
 
-// Properties
-// check that the mark search is the transitive closure of the root set
-assert MarkTraversalTransitiveClosure {
-	let memStart = MS.mem.first.data | MS.marked.last = memStart.(MS.rootSet.(memStart.^pointers))
-}
-check MarkTraversalTransitiveClosure for 10 but 11 Time
-
-// check that no live objects were removed
-assert NoLiveObjectsCollected {
-	let memStart = MS.mem.first.data | 
-		let memEnd = MS.mem.last.data |
-			let liveObjs = MS.rootSet.(memStart.^pointers) |
-				all o: liveObjs | o in memEnd[Addr]
-}
-check NoLiveObjectsCollected for 10 but 11 Time
+// Properties to check
 
 // check that all objects stayed in the same place
-assert NoMovingObjects {
-	let memStart = MS.mem.first.data |
-		let memEnd = MS.mem.last.data |
-			all o: memStart[Addr] {
-				o in memEnd[Addr] => memEnd.o = memStart.o
-			}
-}
-check NoMovingObjects for 10
+
+// check that the mark search is the transitive closure of the root set
+
+// check that no live objects were removed
+
+// check that all objects still in memory are alive

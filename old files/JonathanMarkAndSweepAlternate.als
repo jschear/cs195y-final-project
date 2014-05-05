@@ -12,7 +12,7 @@ sig Object {
 }
 
 one sig Memory {
-	data: (Addr -> lone Object) -> Time
+	data: (Addr lone -> lone Object) -> Time
 } {
 	Object = data.Time[Addr] // all objects in memory
 	Addr = data.Time.Object // all addrs in memory
