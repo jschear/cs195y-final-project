@@ -35,7 +35,7 @@ abstract sig Event {
 
 sig CopyEvent extends Event{} {
 	// we're only adding data mappings
-	SC.mem.pre.data in SC.mem.post.data or SC.mem.pre.data = SC.mem.post.data
+	SC.mem.pre.data in SC.mem.post.data// or SC.mem.pre.data = SC.mem.post.data
 	/*let liveObjs = SC.mem.pre.data[InactiveHeap] |
 	let newObjs = liveObjs.pointers - liveObjs |
 		all o: newObjs | one i: InactiveHeap |
@@ -43,6 +43,25 @@ sig CopyEvent extends Event{} {
 	/*one obj: SC.mem.pre.data[InactiveHeap] |
 		all o: obj.pointers - obj| one i: InactiveHeap |
 		i->o in SC.mem.post.data*/
+	copy[pre, post]
+}
+
+fun copied[t: Time]: set Object {
+	SC.mem.t.data[InactiveHeap]
+}
+
+pred copy[pre, post: Time] {
+	let newObjs = copied[pre].pointers - copied[pre] | {
+		some newObjs
+		all o: newObjs| //one i: InactiveHeap |
+			one i: InactiveHeap|
+				i->o in  SC.mem.post.data
+	}
+}
+
+sig FinalEvent extends Event {} {
+	SC.mem.pre.data = SC.mem.post.data
+	no copied[pre].pointers - copied[pre]
 }
 
 pred init[t: Time] {
@@ -64,9 +83,12 @@ fact Traces {
 	init[first]
 	all e: Event | e.post = e.pre.next // no skipping times
 	all t: Time - last | let t' = t.next | one e: Event | e.pre = t and e.post = t'
+	post.last in FinalEvent
+	one FinalEvent
 }
 
-run {} for 3 but 6 Addr, 3 Object
+run {
+} for 3 but 6 Addr, exactly 3 Object
 
 // Properties to check
 // check that no live objects were removed
