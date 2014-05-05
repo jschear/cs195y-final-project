@@ -2,7 +2,7 @@ module Final/Memory
 
 sig Addr {}
 sig Object {
-	pointers: set Object
+	//pointers: set Addr
 }
 
 sig Primitive extends Object {} {
@@ -10,6 +10,7 @@ sig Primitive extends Object {} {
 }
 
 sig Memory {
+	pointers: Object -> Addr,
 	data: Addr -> lone Object
 	pointers: Object->Addr
 }
