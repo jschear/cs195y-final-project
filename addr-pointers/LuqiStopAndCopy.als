@@ -9,7 +9,7 @@ sig Time {}
 
 one sig SC {
 	mem: Memory one -> Time,
-	forward: (ActiveHeap lone -> InactiveHeap) -> Time
+	forward: (ActiveHeap -> InactiveHeap) -> Time
 } {
 	mem.Time = Memory // No extraneous memories
 }
@@ -53,12 +53,12 @@ abstract sig Event {
 
 
 pred init[t: Time] {
-//	some RootSet
+	some RootSet
 	all o: Object | one a: ActiveHeap | a->o in SC.mem.t.data // all object have one mapping in the ActiveHeap
 	all o: RootSet {
 		one i: InactiveHeap {
 			(i -> o) in SC.mem.t.data
-			(SC.mem.t.data.o -> i) in SC.forward.t
+			//(SC.mem.t.data.o -> i) in SC.forward.t
 		}
 	}
 	all o: Object - RootSet {
@@ -66,4 +66,4 @@ pred init[t: Time] {
 		SC.mem.t.data.o not in SC.forward.t[ActiveHeap]
 	}
 }
-run init for 1 but 4 Addr, 3 Object
+run init for 3 but 4 Addr, 3 Object, 1 Time
