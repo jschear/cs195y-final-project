@@ -24,23 +24,26 @@ fact AtMostOneMapping {
 	}
 }
 
-// at any time, every object's set of pointers is either in the active side or inactive side
-/*
-fact AllPointersInOneSide {
-	all o: Object, t: Time |
-		let pointerAddrs = SC.mem.t.pointers[Object] |
-			(pointerAddrs in InactiveHeap) or (pointerAddrs in ActiveHeap)
-}
-*/
-
 // All addresses are either in the active or inactive side
 fact AllAddrInHeap {
 	// in this model, the address could only be eitheer Active or Inactive
 	Addr = ActiveHeap + InactiveHeap
 }
 
-fact validPointersMapping {
-	all t: Time | SC.mem.t.pointers
+fact OnlyValidForwards {
+	all a: ActiveHeap, i: InactiveHeap, t: Time {
+		a -> i in SC.forward.t iff {
+			SC.mem.t.data[a] = SC.mem.t.data[i]
+			some SC.mem.t.data[a]
+		}
+	}
+}
+
+fact OnlyValidPointers {
+	all t: Time, a: Addr, o: Object| 
+		o->a in SC.mem.t.pointers iff {
+			some o': Object | a->o' in SC.mem.t.data
+		}
 }
 
 /** Events **/
@@ -51,20 +54,16 @@ abstract sig Event {
 
 pred init[t: Time] {
 //	some RootSet
-	all o: Object {
-		one a: ActiveHeap | a->o in SC.mem.t.data
-		o in RootSet => {
-			one i: InactiveHeap {
-				i->o in SC.mem.t.data
-				//(SC.mem.t.data.o -> i) in SC.forward.t
-			}
-		} else {
-			no i: InactiveHeap {
-				i->o in SC.mem.t.data
-				//(SC.mem.t.data.o -> i) in SC.forward.t
-			}
+	all o: Object | one a: ActiveHeap | a->o in SC.mem.t.data // all object have one mapping in the ActiveHeap
+	all o: RootSet {
+		one i: InactiveHeap {
+			(i -> o) in SC.mem.t.data
+			(SC.mem.t.data.o -> i) in SC.forward.t
 		}
 	}
-	no SC.forward.t
+	all o: Object - RootSet {
+		o not in SC.mem.t.data[InactiveHeap]
+		SC.mem.t.data.o not in SC.forward.t[ActiveHeap]
+	}
 }
-run init for 1 but 6 Addr, 3 Object
+run init for 1 but 4 Addr, 3 Object
