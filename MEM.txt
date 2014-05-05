@@ -1,0 +1,7 @@
+This is the memory model so we can reuse it in both MarkAndSweep and StopAndCopy.
+
+One thing worth noticing is that pointers is a relation of Object->Object, while it would make more sense if it's Object->Addr. This doesn't matter much for MarkAndSweep, but it does for StopAndCopy.(see section 2 in StopAndCopy )
+
+Another thing is that for data field, there's no multiplicity for Addr. We originally have one here, then during MarkAndSweep we change it to lone. And when we started model StopAndCopy, we found it no longer fit. So we leave no multiplicity here for Memory model, but for both MarkAndSweep and StopAndCopy models, we have some facts constraining the multiplicity of Addr.
+
+To make life easier, we also added a Canonicalize fact here for Memory, or we'll have a hard time navigating different Memory sigs.
