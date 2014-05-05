@@ -14,9 +14,19 @@ one sig SC {
 	mem.Time = Memory // No extraneous memories
 }
 
+// The forwarding pointers only include 
 fact OnlyValidForwards {
 	all a: ActiveHeap, i: InactiveHeap, t: Time {
-		a -> i in SC.forward.t iff SC.mem.t.data[a] = SC.mem.t.data[i]
+		a -> i in SC.forward.t iff {
+			SC.mem.t.data[a] = SC.mem.t.data[i]
+			some SC.mem.t.data[a]
+		}
+	}
+}
+
+fact OnlyValidPointers {
+	all t: Time, a: Addr, o: Object {
+		o -> a in SC.mem.t.pointers => some o': Object | a-> o' in SC.mem.t.data
 	}
 }
 
@@ -25,14 +35,13 @@ fact AtMostOneMapping {
 	// in our Memory model, we don't have any constraint on the multiplicity of Addr,
 	// this fact is to enforce this
 	all m: Memory | all o: Object {
-		lone a: ActiveHeap| a->o in m.data
-		lone i: InactiveHeap| i->o in m.data
+		lone a: ActiveHeap | a -> o in m.data
+		lone i: InactiveHeap | i -> o in m.data
 	}
 }
 
 // All addresses are either in the active or inactive side
 fact AllAddrInHeap {
-	// in this model, the address could only be eitheer Active or Inactive
 	Addr = ActiveHeap + InactiveHeap
 }
 
@@ -40,29 +49,42 @@ fact AllAddrInHeap {
 abstract sig Event {
 	pre, post: Time
 }
-/*
+
 // Copy all objects that are neighborhoods of current live objects
 sig CopyEvent extends Event {} {
-	let liveObjs = SC.mem.pre.data[InactiveHeap] | // objects in inactive side
-		let pointerAddrs = SC.mem.pre.pointers[liveObjs] | // addrs of the live objs's pointers
-			let pointerObjs = SC.mem.pre.data[pointerAddrs] |
-				let newObjs = pointerObjs - liveObjs {
-					some newObjs // something is being copied
-					all o: newObjs | one i: InactiveHeap {
-						i -> o in SC.mem.post.data // all objects to copy are now mapped in the inactive side
-						(SC.mem.pre.data.o -> i) in SC.forward.post // add forwarding mapping
-					}
-					all o: Object | no i: InactiveHeap | o not in newObjs and (i -> o) in (SC.mem.post.data - SC.mem.pre.data) // no extraneous new mappings in the inactive side
-	}
 	SC.mem.pre.data in SC.mem.post.data // we're only adding data mappings
 	ActiveHeap <: SC.mem.pre.data = ActiveHeap <: SC.mem.post.data // Frame condition: mappings for live portion of heap don't change
-}*/
+	SC.mem.pre.pointers = SC.mem.post.pointers
 
-/*
+	let liveObjs = SC.mem.pre.data[InactiveHeap] | // objects in inactive side
+	let pointerAddrs = SC.mem.pre.pointers[liveObjs] | // addrs of the live objs's pointers
+	let pointerObjs = SC.mem.pre.data[pointerAddrs] |
+	let newObjs = pointerObjs - liveObjs {
+		some newObjs // something is being copied
+		all o: newObjs | one i: InactiveHeap {
+			(i -> o) in SC.mem.post.data // all objects to copy are now mapped in the inactive side
+			(SC.mem.pre.data.o -> i) in SC.forward.post // add forwarding mapping
+		}
+		all o: Object - newObjs | no i: InactiveHeap {
+		 	(i -> o) in (SC.mem.post.data - SC.mem.pre.data) // no extraneous new mappings in the inactive side
+			(SC.mem.pre.data.o -> i) in (SC.forward.post - SC.forward.pre)
+		}
+	}
+}
+
 sig UpdatePointersEvent extends Event {} {
-	SC.mem.pre.data
+	SC.mem.pre.data = SC.mem.post.data // frame condition: memory mappings don't change
+	SC.forward.pre = SC.forward.post // frame condition: forwarding pointers don't change
 
-}*/
+	let liveObjs = SC.mem.pre.data[InactiveHeap] | // objects in inactive side
+		all o: liveObjs | let pointerAddrs = SC.mem.pre.pointers[o] {
+			some pointerAddrs
+			all a: pointerAddrs | let forwardAddr = SC.forward.pre[a] {
+				some forwardAddr
+				a in ActiveHeap and some forwardAddr => forwardAddr in SC.mem.post.pointers[o] and a not in SC.mem.post.pointers[o]
+			}
+		}
+}
 
 // Signaling that we've copied all live objects
 /*
@@ -72,31 +94,31 @@ one sig FinishedEvent extends Event {} {
 }*/
 
 /** Traces **/
-/*
 fact Traces {
 	init[first]
-	//pre.first in UpdatePointersEvent // first event must be updating pointers
+	pre.first in UpdatePointersEvent // first event must be updating pointers
 	all e: Event | e.post = e.pre.next // no skipping times
 	all t: Time - last | let t' = t.next | one e: Event | e.pre = t and e.post = t'
 	//post.last in FinishedEvent 
-}*/
+}
 
 pred init[t: Time] {
 	some RootSet
-	all o: Object | one a: ActiveHeap | a->o in SC.mem.t.data // all object have one mapping in the ActiveHeap
-	all o: RootSet {
-		one i: InactiveHeap {
-			(i -> o) in SC.mem.t.data
-			(SC.mem.t.data.o -> i) in SC.forward.t
-		}
+	all o: RootSet | one a: ActiveHeap, i: InactiveHeap {
+		(a -> o) in SC.mem.t.data
+		(i -> o) in SC.mem.t.data
+		(a -> i) in SC.forward.t
 	}
 	all o: Object - RootSet {
+		one a: ActiveHeap | a->o in SC.mem.t.data
 		o not in SC.mem.t.data[InactiveHeap]
-		SC.mem.t.data.o not in SC.forward.t[ActiveHeap]
+		SC.mem.t.data.o not in SC.forward.t.InactiveHeap
 	}
 }
-run init for 1 but 6 Addr, 3 Object
-run {} for 3 but 6 Addr, 3 Object
+
+run init for 3 but 0 Event, 1 Memory, 1 Time
+
+run {} for 6 but 3 Time, 2 Event
 
 /*
 // Properties to check

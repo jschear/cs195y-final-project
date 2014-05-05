@@ -5,14 +5,11 @@ sig Object {
 	//pointers: set Addr
 }
 
-sig Primitive extends Object {} {
-	no pointers
-}
+sig Primitive extends Object {}
 
 sig Memory {
-	pointers: Object -> Addr,
+	pointers: (Object - Primitive) -> Addr,
 	data: Addr -> lone Object
-	pointers: Object->Addr
 }
 
 fact Canonicalize {
