@@ -15,6 +15,8 @@ one sig SC {
 
 /** Facts **/
 fact AtMostOneMapping {
+	// in our Memory model, we don't have any constraint on the 
+	// multiplicity of Addr, this fact is to enforce this
 	all m: Memory | all o: Object {
 		lone a: ActiveHeap| a->o in m.data
 		lone i: InactiveHeap| i->o in m.data
@@ -23,6 +25,7 @@ fact AtMostOneMapping {
 
 // All addresses are either in the active or inactive side
 fact AllAddrInHeap {
+	// in this model, the address could only be eitheer Active or Inactive
 	Addr = ActiveHeap + InactiveHeap
 }
 
@@ -31,7 +34,7 @@ abstract sig Event {
 	pre, post: Time
 }
 
-//
+// Copy all objects that are neighborhoods of current live objects
 sig CopyEvent extends Event {} {
 	let liveObjs = SC.mem.pre.data[InactiveHeap] |
 		let newObjs = liveObjs.pointers - liveObjs {
@@ -43,7 +46,7 @@ sig CopyEvent extends Event {} {
 	ActiveHeap <: SC.mem.pre.data = ActiveHeap <: SC.mem.post.data // Frame condition: mappings for live portion of heap don't change
 }
 
-//
+// Signaling that we've copied all live objects
 one sig FinishedEvent extends Event {} {
 	SC.mem.pre.data = SC.mem.post.data
 	let liveObjs = SC.mem.pre.data[InactiveHeap] | no (liveObjs.pointers - liveObjs)
@@ -68,24 +71,24 @@ pred init[t: Time] {
 run {} for 3 but 6 Addr, 3 Object
 
 // Properties to check
+// check that all objects are now in the inactive side
+assert SoundAndComplete {
+	let memEnd = SC.mem.last.data | RootSet.*pointers = memEnd[InactiveHeap]
+	// equal sign here makes sure that we're not collecting more nor less
+} 
+check SoundAndComplete for 6 but 12 Addr, 6 Object
+
 // check that no live objects were removed
 assert AllLiveObjectsInNewHeap {
-	let memEnd = SC.mem.last.data |
-		let liveObjs = RootSet.^pointers |
+	let memEnd = SC.mem.last.data | // memory at the end
+		let liveObjs = RootSet.^pointers | // all live objects using TC
 			all o: liveObjs | o in memEnd[InactiveHeap]
 }
 check AllLiveObjectsInNewHeap for 7
 check AllLiveObjectsInNewHeap for 7 but 20 Addr, 10 Object
 check AllLiveObjectsInNewHeap for 5 but 14 Addr, 7 Object
 
-// check that all objects are now in the inactive side
-assert SoundAndComplete {
-	let memEnd = SC.mem.last.data | RootSet.*pointers = memEnd[InactiveHeap]
-	// equal sign here makes sure that we're not collecting more nor less
-} 
-check SoundAndComplete for 6 but 10 Addr, 5 Object
-
-// check that all object's addresses have changed
+// check that all live objects have addresses in InactiveHeap
 assert AllLiveObjectsHaveNewAddresses {
 	all o: RootSet.*pointers | one i: InactiveHeap | i->o in SC.mem.last.data
 }
