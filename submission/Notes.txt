@@ -1,0 +1,79 @@
+Memory
+--------------
+Memory.als is the memory model so we can reuse it in both MarkAndSweep and StopAndCopy.
+
+One thing worth noticing is that pointers is a relation of Object->Object, while it would make more sense if it's Object->Addr. This doesn't matter much for MarkAndSweep, but it does for StopAndCopy.(see section 2 in StopAndCopy )
+
+Another thing is that for data field, there's no multiplicity for Addr. We originally have one here, then during MarkAndSweep we change it to lone. And when we started model StopAndCopy, we found it no longer fit. So we leave no multiplicity here for Memory model, but for both MarkAndSweep and StopAndCopy models, we have some facts constraining the multiplicity of Addr.
+
+To make life easier, we also added a Canonicalize fact here for Memory, or we'll have a hard time navigating different Memory sigs.
+
+Mark and Sweep
+--------------
+The mark and sweep model uses our abstract memory model, and adds a few sigs to describe the marked set of addresses, the root set of addresses, and the memory mappings at each time slice. The 'MS' sig encapsulates all of the mappings that change over time, and the root set is the 'RootSet' sig, which is a subset of the Addr sig.
+
+We used the Event idiom, and modeled mark and sweep as a series of MarkEvents and a single SweepEvent.
+Each MarkEvent models one step in a parallel depth first search of the heap, starting from the root set of addresses.Some new addresses must be added to the marked set in each MarkEvent, and the memory mappings do not change.
+
+The SweepEvent (of which there has to be only one), ensures that the mark phase has finished by checking that taking one step along the marked set's pointers brings us to no unmarked objects. To model the removal of unmarked objects from the heap, the poststate's memory mappings are constrained to be the prestate's, but domain restricted to the addresses in the marked set.
+
+For this model, we checked five (closely related) properties.
+1. The MarkTraversalTransitiveClosure assertion checks that the marked set at the end of the series of events is equal to the transitive closure of the pointers field, starting from the root set addresses.
+2. The NoLiveObjectsCollected assertion checks that each object reachable from the root set of addresses is mapped to in the last time slice's memory.
+3. The AllDeadObjectsCollected assertion checks that each object not reachable from the root set of addresses is not mapped in the last time slice's memory.
+4. The NoMovingObjects assertion checks that each object that is mapped to in the final memory is mapped to using the same address as in the first memory.
+5. The NoMovingObjectsEver assertion, a slightly stronger version of the above check, makes sure that the address of an object doesn't change between and any two distinct times.
+
+The first three of these properties (all of which are stating close to the same thing) were the most interesting -- they ensured that the algorithm actually does what it sets out to do! Getting them working took some extra constraints. Originally, our memory model declared data mappings with the multiplicity "Addr one -> lone Object" to ensure that there were no dangling objects in Memory. This caused problems when we tried to have multiple Memory atoms in the universe, one of which had fewer mappings (once objects had been garbage collected), so we removed the "one" keyword.
+
+When we ran the assertions without this constraint, we found cases in which there were dangling objects in the heap in the first time slice, which would be "live" in the sense that they were reachable from the root set, but would not be mapped in the final state. So, we introduced a new fact, NoDanglingObjects, which ensures that each object is mapped to by an address at some time slice.
+
+We considered trying to verify properties related to dead objects -- i.e. that dead objects in the heap would eventually get collected -- but these
+
+One limitation we faced was that the Ordering module defines the scope for the Time atom in exact terms (which, according to our model, also constrains the number of events, and thus the structure of the heap because each MarkEvent is constrained to make progress), so all of our checks
+
+Stop and Copy
+--------------
+1. About this model
+
+For this model, we divide the address space into 2 spaces- ActiveHeap and InactiveHeap. We start out with all objects in the active side, a root set which comprises of several objects.
+
+For a CopyEvent, we are copying all objects that can be reachable by the live objects into the inactive side. Since all objects that are reachable by the live objects are themselves also live objects, we have an inductive property here: the objects in the inactive side of the heap are to be the live objects for the next CopyEvent. But to make this induction work, we need to define a base case, that is, at the start, all objects in root set also each has exactly one address mapped to it in inactive heap. And these objects(same as root set) are the live objects to start from.
+
+Because we are only copying things over, we don't invalidate the mappings in the active heap, and this gives us a nice property- during the progress of the algorithm, we are only adding mappings.
+
+Finally to mark the termination of the algorithm, we added a FinishedEvent where there's no new objects reachable from current live objects.
+
+2. An unexpected flaw
+
+In our model, the 'pointers' field in Object is a relation of Object->Object instead of Object->Addr. This makes no difference for Mark and Sweep algorithm because for every object, there's at most one address mapped to it. But this assumption no longer holds for Stop and Copy- for every Object, there can be at most 2 addresses mapped to it. And by using the relation of Object->Object, we omitted a good portion of implementation detail in this model.
+
+Right now, we also changed the 'pointers' field to be Object->Addr and we are trying to make it work.
+
+3. Difficulties
+
+For a CopyEvent to just add the right mappings, using 'in' is not enough, we also need to make sure we don't add unreasonable mappings to the memory.
+
+Figuring out a way to keep track of live objects is tricky, this state is changing over time as we added new objects in. Using something similar to marked field in Mark and Sweep model is one option, but then we realized that the live objects are just the same as all objects in the inactive heap. And it simplified things a lot.
+
+We also dodged a lot of difficulty because of the way we define our Memory model. By defining pointers to be pointing to objects, we avoid the process of finding corresponding addresses of certain objects and updating the mapping.
+
+4. Properties
+
+- Soundness and Completeness
+
+It would give us a lot of confidence if we are sure that we copy all live objects to the inactive heap, and we don't copy any non-live object to the inactive heap.
+
+- All live objects in new heap
+
+It's actually just a different form of the next property.
+
+- All live objects have new addresses
+
+By definition, all live objects should each have a mapping in inactive heap. This follows because of the SoundAndComplete property and the assumption that all live objects are in inactive heap.
+
+- Using less than or equal to addresses
+
+It will be a huge surprise if we found out that after copying, we needed more addresses than we did before. Thus this property.
+
+This property naturally follows in our model because during the process of this algorithm, we are not introducing any new objects, and we have a fact (AtMostOneMapping) saying that for every object, there's at most 1 address in inactive heap can be mapped to it. So in fact we can choose to not verify it.
