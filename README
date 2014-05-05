@@ -1,0 +1,10 @@
+Modeling Garbage Collection: The Mark-and-Sweep and Stop-and-Copy Algorithms
+
+Luqi Pan
+Jonathan Schear
+
+Files:
+    Memory.als -- the abstract memory model used for both algorithms
+    MarkAndSweep.als -- the model for mark and sweep
+    StopAndCopy.als -- the model for stop and copy
+    Notes.txt -- a text file describing the design and properties of our models
