@@ -40,7 +40,7 @@ sig CopyEvent extends Event {} {
 		let newObjs = liveObjs.pointers - liveObjs {
 			some newObjs // something is being copied
 			all o: newObjs | one i: InactiveHeap | i -> o in SC.mem.post.data // all objects to copy are now mapped in the inactive side
-			no o: Object | (InactiveHeap -> o) in (SC.mem.post.data - SC.mem.pre.data) and (o not in newObjs) // no extraneous new mappings in the inactive side
+			all o: Object | no i: InactiveHeap | o not in newObjs => (i -> o) not in (SC.mem.post.data - SC.mem.pre.data) // no extraneous new mappings in the inactive side
 		}
 	SC.mem.pre.data in SC.mem.post.data // we're only adding data mappings
 	ActiveHeap <: SC.mem.pre.data = ActiveHeap <: SC.mem.post.data // Frame condition: mappings for live portion of heap don't change
@@ -76,7 +76,7 @@ assert SoundAndComplete {
 	let memEnd = SC.mem.last.data | RootSet.*pointers = memEnd[InactiveHeap]
 	// equal sign here makes sure that we're not collecting more nor less
 } 
-check SoundAndComplete for 6 but 12 Addr, 6 Object
+check SoundAndComplete for 6 but 20 Addr, 10 Object
 
 // check that no live objects were removed
 assert AllLiveObjectsInNewHeap {
