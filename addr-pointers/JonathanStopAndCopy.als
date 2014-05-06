@@ -15,6 +15,7 @@ one sig SC {
 }
 
 // The forwarding pointers only include 
+
 fact OnlyValidForwards {
 	all a: ActiveHeap, i: InactiveHeap, t: Time {
 		a -> i in SC.forward.t iff {
@@ -29,6 +30,7 @@ fact OnlyValidPointers {
 		o -> a in SC.mem.t.pointers => some o': Object | a-> o' in SC.mem.t.data
 	}
 }
+
 
 /** Facts **/
 fact AtMostOneMapping {
@@ -76,15 +78,28 @@ sig UpdatePointersEvent extends Event {} {
 	SC.mem.pre.data = SC.mem.post.data // frame condition: memory mappings don't change
 	SC.forward.pre = SC.forward.post // frame condition: forwarding pointers don't change
 
-	let liveObjs = SC.mem.pre.data[InactiveHeap] | // objects in inactive side
-		all o: liveObjs | let pointerAddrs = SC.mem.pre.pointers[o] {
-			some pointerAddrs
-			all a: pointerAddrs | let forwardAddr = SC.forward.pre[a] {
-				some forwardAddr
-				a in ActiveHeap and some forwardAddr => forwardAddr in SC.mem.post.pointers[o] and a not in SC.mem.post.pointers[o]
+	let liveObjs = SC.mem.pre.data[InactiveHeap] |
+		all o: liveObjs |
+			let pointerAddrs = SC.mem.pre.pointers[o] |
+			let forwarded = {x: pointerAddrs | x in SC.forward.pre.InactiveHeap} {
+				//some mapped
+				SC.mem.post.pointers[o] = pointerAddrs - forwarded + SC.forward.pre[forwarded]
+			}
+}
+/*
+	let liveObjs = SC.mem.pre.data[InactiveHeap] { // objects in inactive side
+		//some (SC.mem.pre.pointers[liveObjs] - InactiveHeap)// there are some pointers to update
+		some o: liveObjs {
+			let pointerAddrs = SC.mem.pre.pointers[o] |
+			let mapped = {x: pointerAddrs | some SC.forward.pre[x]} |
+			let unmapped = {x: pointerAddrs | no SC.forward.pre[x]} {
+				some mapped
+				SC.mem.post.pointers[o] = unmapped + SC.forward.pre[mapped]
 			}
 		}
-}
+	}
+*/
+
 
 // Signaling that we've copied all live objects
 /*
@@ -93,12 +108,21 @@ one sig FinishedEvent extends Event {} {
 	let liveObjs = SC.mem.pre.data[InactiveHeap] | no (liveObjs.pointers - liveObjs)
 }*/
 
-/** Traces **/
+/** Traces **/ 
 fact Traces {
 	init[first]
-	pre.first in UpdatePointersEvent // first event must be updating pointers
+	//pre.first in CopyEvent
+	//pre.(first.next) in CopyEvent
+	one UpdatePointersEvent
+	post.last in UpdatePointersEvent
+
 	all e: Event | e.post = e.pre.next // no skipping times
-	all t: Time - last | let t' = t.next | one e: Event | e.pre = t and e.post = t'
+	all t: Time - last | let t' = t.next | 
+		one e: Event {
+			e.pre = t and e.post = t'
+			//SC.mem.t.data = SC.mem.t'.data or e in CopyEvent
+			//SC.forward.t = SC.forward.t' or e in UpdatePointersEvent
+		}
 	//post.last in FinishedEvent 
 }
 
