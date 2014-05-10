@@ -97,6 +97,7 @@ assert NoLiveObjectsCollected {
 check NoLiveObjectsCollected for 9 // Exactly 9 Time, so 8 Event (worst case: Objects are a linked list)
 check NoLiveObjectsCollected for 5 but 10 Object, 10 Addr // More reasonable case, it takes fewer marks to cover everything
 check NoLiveObjectsCollected for 5 but 13 Object, 13 Addr
+check NoLiveObjectsCollected for 4 but 15 Object, 20 Addr
 
 // Check that all objects not reachable from root set are removed from memory
 assert AllDeadObjectsCollected {
@@ -127,3 +128,27 @@ assert NoMovingObjectsEver {
 	}
 }
 check NoMovingObjectsEver for 10
+
+// Confirm that memory footprint is no bigger
+assert HeapIsNoBiggerAfterCollection {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data |
+			#memStart.Object >= #memEnd.Object
+}
+check HeapIsNoBiggerAfterCollection for 10
+
+assert HeapIsStriclySmallerAfterCollection {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data {
+			all o: memStart[Addr] | o not in RootSet.(memStart.*pointers) => #memStart.Object > #memEnd.Object
+		}
+}
+check HeapIsStriclySmallerAfterCollection for 10
+
+// Will indeed collect cycles
+assert CyclicStructureIsCollected {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data |
+			all o: Object | (o in o.^pointers and o not in RootSet.(memStart.*pointers)) => o not in memEnd[Addr]
+	}
+check CyclicStructureIsCollected for 10

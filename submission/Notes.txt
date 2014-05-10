@@ -28,9 +28,9 @@ The first three of these properties (all of which are stating close to the same 
 
 When we ran the assertions without this constraint, we found cases in which there were dangling objects in the heap in the first time slice, which would be "live" in the sense that they were reachable from the root set, but would not be mapped in the final state. So, we introduced a new fact, NoDanglingObjects, which ensures that each object is mapped to by an address at some time slice.
 
-We considered trying to verify properties related to dead objects -- i.e. that dead objects in the heap would eventually get collected -- but these
+We considered trying to verify properties related to the performance of the garbage collector over a series of object allocations, deallocations, and  -- i.e. that dead objects in the heap would eventually get collected -- but these seemed to require temporal logic, or a notion of infinite executions.
 
-One limitation we faced was that the Ordering module defines the scope for the Time atom in exact terms (which, according to our model, also constrains the number of events, and thus the structure of the heap because each MarkEvent is constrained to make progress), so all of our checks
+One limitation we faced was that the Ordering module defines the scope for the Time atom in exact terms (which, according to our model, also constrains the number of events, and thus the structure of the heap because each MarkEvent is constrained to make progress), so all of our checks corresponded to specific number of mark events. It isn't clear how we would be able to get around this problem, but we were able to run multiple checks for each assert and are reasonably confident about the claims we make.
 
 Stop and Copy
 --------------
