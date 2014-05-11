@@ -101,3 +101,17 @@ assert UsingLEQAddrs {
 	#(ActiveHeap <: SC.mem.first.data) >= #(InactiveHeap <: SC.mem.last.data)
 }
 check UsingLEQAddrs for 7
+
+assert CyclicStructureNotInRootSet {
+		let memEnd = SC.mem.last.data |
+			all o: Object | (o in o.^pointers and o not in RootSet.*pointers) => o not in memEnd[InactiveHeap]
+}
+check CyclicStructureNotInRootSet for 5
+check CyclicStructureNotInRootSet for 8
+
+assert CyclicStructureInRootSet {
+	let memEnd = SC.mem.last.data |
+		all o: Object | (o in o.^pointers and o in RootSet.*pointers) => o in memEnd[InactiveHeap]
+}
+check CyclicStructureInRootSet for 5
+check CyclicStructureInRootSet for 8
