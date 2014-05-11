@@ -146,9 +146,17 @@ assert HeapIsStriclySmallerAfterCollection {
 check HeapIsStriclySmallerAfterCollection for 10
 
 // Will indeed collect cycles
-assert CyclicStructureIsCollected {
+assert CyclicStructureNotInRootSet {
 	let memStart = MS.mem.first.data | 
 		let memEnd = MS.mem.last.data |
 			all o: Object | (o in o.^pointers and o not in RootSet.(memStart.*pointers)) => o not in memEnd[Addr]
 	}
-check CyclicStructureIsCollected for 10
+check CyclicStructureNotInRootSet for 10
+
+
+assert CyclicStructureInRootSet {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data |
+			all o: Object | (o in o.^pointers and o in RootSet.(memStart.*pointers)) => o in memEnd[Addr]
+	}
+check CyclicStructureInRootSet for 10
