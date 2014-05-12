@@ -102,6 +102,7 @@ assert UsingLEQAddrs {
 }
 check UsingLEQAddrs for 7
 
+// Cyclic structures
 assert CyclicStructureNotInRootSet {
 		let memEnd = SC.mem.last.data |
 			all o: Object | (o in o.^pointers and o not in RootSet.*pointers) => o not in memEnd[InactiveHeap]
@@ -115,3 +116,27 @@ assert CyclicStructureInRootSet {
 }
 check CyclicStructureInRootSet for 5
 check CyclicStructureInRootSet for 8
+
+// Using isRing predicate
+pred isRing[os: set Object] {
+	some os
+	all o: os {
+		one o': os | o->o' in pointers
+		os = o.(^pointers)
+	}
+}
+run isRing for 5
+
+assert RingNotInRootSetRing { 
+	let memEnd = SC.mem.last.data |
+		all os: set Object | (isRing[os] and os not in RootSet.*pointers) => os not in memEnd[InactiveHeap]
+}
+check RingNotInRootSetRing for 7
+check RingNotInRootSetRing for 5 but 8 Object, 16 Addr
+
+assert RingInRootSetRing {
+	let memEnd = SC.mem.last.data |
+		all os: set Object | (isRing[os] and some o: os | o in RootSet.*pointers) => os in memEnd[InactiveHeap]
+}
+check RingInRootSetRing for 7
+check RingInRootSetRing for 5 but 8 Object, 16 Addr

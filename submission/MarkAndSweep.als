@@ -145,14 +145,14 @@ assert HeapIsStriclySmallerAfterCollection {
 }
 check HeapIsStriclySmallerAfterCollection for 10
 
-// Will indeed collect cycles
+// Cyclic structures
 assert CyclicStructureNotInRootSet {
 	let memStart = MS.mem.first.data | 
 		let memEnd = MS.mem.last.data |
 			all o: Object | (o in o.^pointers and o not in RootSet.(memStart.*pointers)) => o not in memEnd[Addr]
 	}
 check CyclicStructureNotInRootSet for 10
-
+check CyclicStructureNotInRootSet for 5 but 10 Object, 10 Addr
 
 assert CyclicStructureInRootSet {
 	let memStart = MS.mem.first.data | 
@@ -160,3 +160,30 @@ assert CyclicStructureInRootSet {
 			all o: Object | (o in o.^pointers and o in RootSet.(memStart.*pointers)) => o in memEnd[Addr]
 	}
 check CyclicStructureInRootSet for 10
+check CyclicStructureInRootSet for 5 but 10 Object, 10 Addr
+
+// Using isRing predicate
+pred isRing[os: set Object] {
+	some os
+	all o: os {
+		one o': os | o->o' in pointers
+		os = o.(^pointers)
+	}
+}
+run isRing for 5
+
+assert RingNotInRootSetRing {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data |
+			all os: set Object | (isRing[os] and os not in RootSet.(memStart.*pointers)) => os not in memEnd[Addr]
+	}
+check RingNotInRootSetRing for 7
+check RingNotInRootSetRing for 5 but 10 Object, 10 Addr
+
+assert RingInRootSetRing {
+	let memStart = MS.mem.first.data | 
+		let memEnd = MS.mem.last.data |
+			all os: set Object | (isRing[os] and some o: os | o in RootSet.(memStart.*pointers)) => os in memEnd[Addr]
+	}
+check RingInRootSetRing for 7
+check RingInRootSetRing for 5 but 10 Object, 10 Addr
